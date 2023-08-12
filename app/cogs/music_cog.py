@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from youtube_dl import YoutubeDL
+from yt_dlp import YoutubeDL
 
 
 class music_cog(commands.Cog):
@@ -58,8 +58,7 @@ class music_cog(commands.Cog):
                 self.music_queue.pop(0)
 
                 self.vc.play(
-                    discord.FFmpegPCMAudio(m_url),
-                    **self.FFMPEG_OPTIONS,
+                    discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
                     after=lambda e: self.play_next()
                 )
         else:
@@ -78,7 +77,7 @@ class music_cog(commands.Cog):
             self.vc.resume()
         else:
             song = self.search_yt(query)
-            if song:
+            if not song:
                 await ctx.send(
                     "Cannot download song because of incorrect format, try another search."
                 )
