@@ -1,7 +1,40 @@
 import discord
 import os
+from asyncio import run
 from discord.ext import commands
-from music_cog import music_cog
-from help_cog import help_cog
+from dotenv import load_dotenv
 
-bot = commands.Bot(command_prefix="/")
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+bot = commands.Bot(command_prefix=".", intents=intents)
+
+bot.remove_command("help")
+
+
+@bot.event
+async def on_ready():
+    print(f"{bot.user} is online.")
+
+
+@bot.command()
+async def admin_key__load(ctx, extension):
+    bot.load_extension(f"cogs.{extension}")
+    await ctx.send(f"Loaded {extension} command(s)")
+
+
+@bot.command()
+async def admin_key__unload(ctx, extension):
+    bot.unload_extension(f"cogs.{extension}")
+    await ctx.send(f"Unloaded {extension} command(s)")
+
+
+async def load():
+    for filename in os.listdir("./app/cogs"):
+        if filename.endswith(".py"):
+            await bot.load_extension(f"cogs.{filename[:-3]}")
+
+
+run(load())
+load_dotenv()
+bot.run(os.getenv("BOT_TOKEN"))
