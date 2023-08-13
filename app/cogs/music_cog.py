@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from yt_dlp import YoutubeDL
-
+from pprint import pprint
 
 class music_cog(commands.Cog):
     def __init__(self, bot):
@@ -11,7 +11,10 @@ class music_cog(commands.Cog):
         self.is_paused = False
 
         self.music_queue = []
-        self.YDL_OPTIONS = {"format": "bestaudio", "noplaylist": "True"}
+        self.YDL_OPTIONS = {"format": "bestaudio/best", "noplaylist": "True", "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "opus"
+        }]}
         self.FFMPEG_OPTIONS = {"before_options": "-reconnect 1 -reconnect_streamed 1"}
 
         self.vc = None
@@ -24,10 +27,10 @@ class music_cog(commands.Cog):
         with YoutubeDL(self.YDL_OPTIONS) as ydl:
             try:
                 info_dict = ydl.extract_info("ytsearch:%s" % item, download=False)
-                info = info_dict["entries"][0]
+                info = info_dict["entries"][-1]
             except Exception:
                 return False
-        return {"source": info["formats"][0]["url"], "title": info["title"]}
+        return {"source": info["url"], "title": info["title"]}
 
     def play_next(self):
         if len(self.music_queue) > 0:
@@ -35,7 +38,7 @@ class music_cog(commands.Cog):
             m_url = self.music_queue[0][0]["source"]
             self.music_queue.pop(0)
             self.vc.play(
-                discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
+                discord.FFmpegPCMAudio(m_url),
                 after=lambda e: self.play_next(),
             )
         else:
@@ -58,7 +61,7 @@ class music_cog(commands.Cog):
                 self.music_queue.pop(0)
 
                 self.vc.play(
-                    discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
+                    discord.FFmpegPCMAudio(m_url),
                     after=lambda e: self.play_next()
                 )
         else:
@@ -71,6 +74,7 @@ class music_cog(commands.Cog):
         query = " ".join(args)
 
         voice_channel = ctx.author.voice.channel
+        print(voice_channel)
         if voice_channel is None:
             await ctx.send("Connect to a voice channel")
         elif self.is_paused:
@@ -86,6 +90,7 @@ class music_cog(commands.Cog):
                 self.music_queue.append([song, voice_channel])
                 if self.is_playing is False:
                     await self.play_music(ctx)
+                    
 
     @commands.command(name="pause", help="Pause currently playing song.")
     async def pause(self, ctx, *args):
