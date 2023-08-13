@@ -12,10 +12,7 @@ class music_cog(commands.Cog):
         self.is_paused = False
         self.now_playing = []
         self.music_queue = []
-        self.YDL_OPTIONS = {
-            "format": "bestaudio/best",
-            "noplaylist": "True"
-        }
+        self.YDL_OPTIONS = {"format": "bestaudio/best", "noplaylist": "True"}
         self.FFMPEG_OPTIONS = {"before_options": "-reconnect 1 -reconnect_streamed 1"}
 
         self.vc = None
@@ -29,21 +26,26 @@ class music_cog(commands.Cog):
             try:
                 info_dict = ydl.extract_info("ytsearch:%s" % item, download=False)
                 info = info_dict["entries"][-1]
-                print(info)
             except Exception:
                 return False
-        return {"source": info["url"], "title": info["title"]}
+        return {
+            "source": info["url"],
+            "title": info["title"],
+            "duration": info["duration_string"],
+        }
 
     def play_next(self):
         if len(self.music_queue) > 0:
             self.is_playing = True
             m_url = self.music_queue[0][0]["source"]
             self.now_playing.clear()
-            self.now_playing.append(self.music_queue[0][0]["title"])
+            self.now_playing.append(
+                (self.music_queue[0][0]["title"], self.music_queue[0][0]["duration"])
+            )
             self.music_queue.pop(0)
             self.vc.play(
                 discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-                after=lambda e: self.play_next()
+                after=lambda e: self.play_next(),
             )
         else:
             self.is_playing = False
@@ -63,11 +65,17 @@ class music_cog(commands.Cog):
                         await self.vc.move_to(self.music_queue[0][1])
                 finally:
                     self.now_playing.clear()
-                    self.now_playing.append(self.music_queue[0][0]["title"])
+                    self.now_playing.append(
+                        (
+                            self.music_queue[0][0]["title"],
+                            self.music_queue[0][0]["duration"],
+                        )
+                    )
                     self.music_queue.pop(0)
 
                     self.vc.play(
-                        discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next()
+                        discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
+                        after=lambda e: self.play_next(),
                     )
         else:
             self.is_playing = False
@@ -131,10 +139,14 @@ class music_cog(commands.Cog):
         retval = []
         newline = "\n"
         for index, i in enumerate(range(0, len(self.music_queue))):
-            retval.append(f"{index + 1}. {self.music_queue[i][0]['title']}")
+            retval.append(
+                f"{index + 1}. {self.music_queue[i][0]['title']} | {self.music_queue[i][0]['duration']}"
+            )
 
         if retval:
-            self.embed.add_field(name="**Queue**", value=f"```{newline.join(retval)}```")
+            self.embed.add_field(
+                name="**Queue**", value=f"```{newline.join(retval)}```"
+            )
             await ctx.send(embed=self.embed)
             self.embed.clear_fields()
         else:
@@ -162,11 +174,15 @@ class music_cog(commands.Cog):
     @commands.command(name="np", aliases=["nowplaying"], help="Shows now playing song.")
     async def nowplaying(self, ctx):
         if len(self.now_playing) > 0:
-            self.embed.add_field(name="**Now Playing**", value=f"```{self.now_playing[0]}```")
+            self.embed.add_field(
+                name="**Now Playing**",
+                value=f"```{self.now_playing[0][0]} | {self.now_playing[0][1]}```",
+            )
             await ctx.send(embed=self.embed)
             self.embed.clear_fields()
         else:
             await ctx.send("No music is playing.")
+
 
 async def setup(bot):
     await bot.add_cog(music_cog(bot))
