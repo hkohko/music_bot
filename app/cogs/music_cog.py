@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from yt_dlp import YoutubeDL
-from pprint import pprint
 
 class music_cog(commands.Cog):
     def __init__(self, bot):
@@ -146,7 +145,7 @@ class music_cog(commands.Cog):
     )
     async def leave(self, ctx):
         self.is_playing = False
-        self.is_paused = True
+        self.is_paused = False
         await self.vc.disconnect()
 
 
