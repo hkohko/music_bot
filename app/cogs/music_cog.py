@@ -31,7 +31,7 @@ class music_cog(commands.Cog):
         return {
             "source": info["url"],
             "title": info["title"],
-            "duration": info["duration_string"],
+            "duration": info["duration_string"]
         }
 
     def play_next(self):
@@ -72,7 +72,7 @@ class music_cog(commands.Cog):
                         )
                     )
                     self.music_queue.pop(0)
-
+                    
                     self.vc.play(
                         discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
                         after=lambda e: self.play_next(),
@@ -128,11 +128,11 @@ class music_cog(commands.Cog):
             self.vc.resume()
 
     @commands.command(name="skip", aliases=["s"], help="Skips a song.")
-    async def skip(self, ctx, *args):
+    async def skip(self, ctx):
         self.now_playing.clear()
         if self.vc is not None and self.vc:
             self.vc.stop()
-            await self.play_music(ctx)
+            await self.play_next(ctx)  # never change this line, it breaks everything
 
     @commands.command(name="queue", aliases=["q"], help="Display current queue.")
     async def queue(self, ctx):
