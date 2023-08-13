@@ -87,6 +87,8 @@ class music_cog(commands.Cog):
         query = " ".join(args)
         try:
             voice_channel = ctx.author.voice.channel
+            print(voice_channel)
+            print(self.music_queue)
             in_vc = True
         except AttributeError:
             in_vc = False
@@ -170,6 +172,8 @@ class music_cog(commands.Cog):
         self.is_playing = False
         self.is_paused = False
         await self.vc.disconnect()
+        self.music_queue.clear()
+        self.vc = None  # can only join one channel currently
 
     @commands.command(name="np", aliases=["nowplaying"], help="Shows now playing song.")
     async def nowplaying(self, ctx):
