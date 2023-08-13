@@ -5,6 +5,7 @@ from yt_dlp import YoutubeDL
 
 class music_cog(commands.Cog):
     def __init__(self, bot):
+        self.embed = discord.Embed(color=discord.Color.dark_red())
         self.bot = bot
 
         self.is_playing = False
@@ -13,8 +14,7 @@ class music_cog(commands.Cog):
         self.music_queue = []
         self.YDL_OPTIONS = {
             "format": "bestaudio/best",
-            "noplaylist": "True",
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "opus"}],
+            "noplaylist": "True"
         }
         self.FFMPEG_OPTIONS = {"before_options": "-reconnect 1 -reconnect_streamed 1"}
 
@@ -29,6 +29,7 @@ class music_cog(commands.Cog):
             try:
                 info_dict = ydl.extract_info("ytsearch:%s" % item, download=False)
                 info = info_dict["entries"][-1]
+                print(info)
             except Exception:
                 return False
         return {"source": info["url"], "title": info["title"]}
@@ -41,8 +42,8 @@ class music_cog(commands.Cog):
             self.now_playing.append(self.music_queue[0][0]["title"])
             self.music_queue.pop(0)
             self.vc.play(
-                discord.FFmpegPCMAudio(m_url),
-                after=lambda e: self.play_next(),
+                discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
+                after=lambda e: self.play_next()
             )
         else:
             self.is_playing = False
@@ -51,22 +52,23 @@ class music_cog(commands.Cog):
         if len(self.music_queue) > 0:
             self.is_playing = True
             m_url = self.music_queue[0][0]["source"]
+            if self.vc is None or self.vc.is_connected():
+                try:
+                    self.vc = await self.music_queue[0][1].connect()
+                except discord.errors.ClientException:
+                    if self.vc is None:
+                        await ctx.send("Can't connect to voice channel")
+                        return
+                    else:
+                        await self.vc.move_to(self.music_queue[0][1])
+                finally:
+                    self.now_playing.clear()
+                    self.now_playing.append(self.music_queue[0][0]["title"])
+                    self.music_queue.pop(0)
 
-            if self.vc is None or not self.vc.is_connected():
-                self.vc = await self.music_queue[0][1].connect()
-
-                if self.vc is None:
-                    await ctx.send("Can't connect to voice channel")
-                    return
-                else:
-                    await self.vc.move_to(self.music_queue[0][1])
-                self.now_playing.clear()
-                self.now_playing.append(self.music_queue[0][0]["title"])
-                self.music_queue.pop(0)
-
-                self.vc.play(
-                    discord.FFmpegPCMAudio(m_url), after=lambda e: self.play_next()
-                )
+                    self.vc.play(
+                        discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next()
+                    )
         else:
             self.is_playing = False
 
@@ -119,21 +121,22 @@ class music_cog(commands.Cog):
 
     @commands.command(name="skip", aliases=["s"], help="Skips a song.")
     async def skip(self, ctx, *args):
+        self.now_playing.clear()
         if self.vc is not None and self.vc:
             self.vc.stop()
             await self.play_music(ctx)
 
     @commands.command(name="queue", aliases=["q"], help="Display current queue.")
     async def queue(self, ctx):
-        retval = ""
+        retval = []
+        newline = "\n"
+        for index, i in enumerate(range(0, len(self.music_queue))):
+            retval.append(f"{index + 1}. {self.music_queue[i][0]['title']}")
 
-        for i in range(0, len(self.music_queue)):
-            if i > 4:
-                break
-            retval += self.music_queue[i][0]["title"] + "\n"
-
-        if retval != "":
-            await ctx.send(retval)
+        if retval:
+            self.embed.add_field(name="**Queue**", value=f"```{newline.join(retval)}```")
+            await ctx.send(embed=self.embed)
+            self.embed.clear_fields()
         else:
             await ctx.send("Queue is empty.")
 
@@ -158,8 +161,12 @@ class music_cog(commands.Cog):
 
     @commands.command(name="np", aliases=["nowplaying"], help="Shows now playing song.")
     async def nowplaying(self, ctx):
-        await ctx.send(f'Now Playing: {"".join(self.now_playing)}')
-
+        if len(self.now_playing) > 0:
+            self.embed.add_field(name="**Now Playing**", value=f"```{self.now_playing[0]}```")
+            await ctx.send(embed=self.embed)
+            self.embed.clear_fields()
+        else:
+            await ctx.send("No music is playing.")
 
 async def setup(bot):
     await bot.add_cog(music_cog(bot))
