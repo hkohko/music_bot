@@ -18,14 +18,16 @@ async def on_ready():
 
 
 @bot.command()
+@commands.is_owner()
 async def admin_key__load(ctx, extension):
-    bot.load_extension(f"cogs.{extension}")
+    await bot.load_extension(f"cogs.{extension}")
     await ctx.send(f"Loaded {extension} command(s)")
 
 
 @bot.command()
+@commands.is_owner()
 async def admin_key__unload(ctx, extension):
-    bot.unload_extension(f"cogs.{extension}")
+    await bot.unload_extension(f"cogs.{extension}")
     await ctx.send(f"Unloaded {extension} command(s)")
 
 

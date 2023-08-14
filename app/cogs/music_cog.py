@@ -10,12 +10,20 @@ class music_cog(commands.Cog):
 
         self.is_playing = False
         self.is_paused = False
+        self.repeat = False
+
         self.now_playing = []
         self.music_queue = []
         self.YDL_OPTIONS = {"format": "bestaudio/best", "noplaylist": "True"}
         self.FFMPEG_OPTIONS = {"before_options": "-reconnect 1 -reconnect_streamed 1"}
 
         self.vc = None
+
+    def get_repeat_status(self) -> str:
+        if self.repeat:
+            return " (repeat)"
+        else:
+            return ""
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -31,18 +39,24 @@ class music_cog(commands.Cog):
         return {
             "source": info["url"],
             "title": info["title"],
-            "duration": info["duration_string"]
+            "duration": info["duration_string"],
         }
 
     def play_next(self):
         if len(self.music_queue) > 0:
             self.is_playing = True
+            if self.repeat is False:
+                self.music_queue.pop(0)
             m_url = self.music_queue[0][0]["source"]
-            self.now_playing.clear()
-            self.now_playing.append(
-                (self.music_queue[0][0]["title"], self.music_queue[0][0]["duration"])
-            )
-            self.music_queue.pop(0)
+            if self.repeat is False:
+                self.now_playing.clear()
+                self.now_playing.append(
+                    (
+                        self.music_queue[0][0]["title"],
+                        self.music_queue[0][0]["duration"],
+                    )
+                )
+
             self.vc.play(
                 discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
                 after=lambda e: self.play_next(),
@@ -71,8 +85,8 @@ class music_cog(commands.Cog):
                             self.music_queue[0][0]["duration"],
                         )
                     )
-                    self.music_queue.pop(0)
-                    
+                    # self.music_queue.pop(0)
+
                     self.vc.play(
                         discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
                         after=lambda e: self.play_next(),
@@ -120,6 +134,17 @@ class music_cog(commands.Cog):
             self.is_paused = False
             self.vc.resume()
 
+    @commands.command(name="repeat", help="Repeats currently playing song.")
+    async def repeat_track(self, ctx):
+        if self.repeat is True:
+            self.repeat = False
+            await ctx.send(f"Tracks now plays normally.")
+            return
+        if self.repeat is False:
+            self.repeat = True
+            await ctx.send(f"`{self.now_playing[0][0]}` is on repeat")
+            return
+
     @commands.command(
         name="resume", aliases=["r"], help="Resumes currently paused song."
     )
@@ -147,7 +172,8 @@ class music_cog(commands.Cog):
 
         if retval:
             self.embed.add_field(
-                name="**Queue**", value=f"```{newline.join(retval)}```"
+                name=f"**Queue{self.get_repeat_status()}**",
+                value=f"```{newline.join(retval)}```",
             )
             await ctx.send(embed=self.embed)
             self.embed.clear_fields()
@@ -179,7 +205,7 @@ class music_cog(commands.Cog):
     async def nowplaying(self, ctx):
         if len(self.now_playing) > 0:
             self.embed.add_field(
-                name="**Now Playing**",
+                name=f"**Now Playing{self.get_repeat_status()}**",
                 value=f"```{self.now_playing[0][0]} | {self.now_playing[0][1]}```",
             )
             await ctx.send(embed=self.embed)
