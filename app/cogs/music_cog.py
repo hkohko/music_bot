@@ -61,9 +61,20 @@ class music_cog(commands.Cog):
         m_url = self.music_queue[0][0]["source"]
         self.vc.play(
             discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-            after=lambda _: self.play_next()  # idk the behaviour of anon func
+            after=lambda _: self.play_next(),  # idk the behaviour of anon func
         )
-            
+
+    async def connect_to_vc(self, ctx):
+        if self.vc is None or self.vc.is_connected():
+            try:
+                self.vc = await self.music_queue[0][1].connect()
+                return True
+            except discord.errors.ClientException:
+                if self.vc is None:
+                    await ctx.send("Can't connect to voice channel")
+                    return False
+                await self.vc.move_to(self.music_queue[0][1])
+                return True
 
     async def play_music(self, ctx):
         if len(self.music_queue) == 0:
@@ -71,28 +82,21 @@ class music_cog(commands.Cog):
             return
         self.is_playing = True
         m_url = self.music_queue[0][0]["source"]
-        if self.vc is None or self.vc.is_connected():
-            try:
-                self.vc = await self.music_queue[0][1].connect()
-            except discord.errors.ClientException:
-                if self.vc is None:
-                    await ctx.send("Can't connect to voice channel")
-                    return
-                await self.vc.move_to(self.music_queue[0][1])
-            finally:
-                if self.repeat is False:
-                    title, duration = self.get_now_playing()
-                    self.embed.add_field(
-                        name=f"**Now Playing{self.get_repeat_status()}**",
-                        value=f"```{title} | {duration}```",
-                    )
-                    await ctx.send(embed=self.embed)
-                    self.embed.clear_fields()
-                self.vc.play(
-                    discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-                    after=lambda _: self.play_next()
-                )
-            
+        connect = await self.connect_to_vc(ctx)
+        if not connect:
+            return
+        if self.repeat is False:
+            title, duration = self.get_now_playing()
+            self.embed.add_field(
+                name=f"**Now Playing{self.get_repeat_status()}**",
+                value=f"```{title} | {duration}```",
+            )
+            await ctx.send(embed=self.embed)
+            self.embed.clear_fields()
+        self.vc.play(
+            discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
+            after=lambda _: self.play_next(),
+        )
 
     @commands.command(
         name="play", aliases=["p", "playing"], help="Play the song from Youtube"
@@ -122,7 +126,10 @@ class music_cog(commands.Cog):
                 info_duration = song.get("duration")
                 song_title = "Unavailable" if info_title is None else info_title
                 song_duration = "00:00" if info_duration is None else info_duration
-                self.embed.add_field(name="Added to the queue", value=f"```{song_title} | {song_duration}```")
+                self.embed.add_field(
+                    name="Added to the queue",
+                    value=f"```{song_title} | {song_duration}```",
+                )
                 await ctx.send(embed=self.embed)
                 self.embed.clear_fields()
                 if self.is_playing is False:  # will only connect and play if its False
