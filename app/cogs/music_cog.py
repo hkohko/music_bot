@@ -50,18 +50,22 @@ class music_cog(commands.Cog):
     def play_next(self):
         self.is_playing = True
         if self.repeat is False:
-            self.music_queue.pop(0)
+            try:
+                self.music_queue.pop(0)
+            except IndexError:
+                self.is_playing = False
+                return
         if len(self.music_queue) > 0:
             m_url = self.music_queue[0][0]["source"]
             self.vc.play(
                 discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-                after=lambda e: self.play_next(),  # idk the behaviour of anon func
+                after=lambda e: self.play_next()  # idk the behaviour of anon func
             )
         else:
             self.is_playing = False
 
     async def play_music(self, ctx):
-        if len(self.music_queue) > 0:
+        if len(self.music_queue) ==  0:
             self.is_playing = True
             m_url = self.music_queue[0][0]["source"]
             if self.vc is None or self.vc.is_connected():
@@ -83,7 +87,7 @@ class music_cog(commands.Cog):
                         self.embed.clear_fields()
                     self.vc.play(
                         discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-                        after=lambda e: self.play_next(),
+                        after=lambda e: self.play_next()
                     )
         else:
             self.is_playing = False
@@ -112,7 +116,7 @@ class music_cog(commands.Cog):
             else:
                 await ctx.send("Added to the queue")
                 self.music_queue.append([song, voice_channel])
-                if self.is_playing is False:
+                if self.is_playing is False:  # will only connect and play if its False
                     await self.play_music(ctx)
         else:
             pass
