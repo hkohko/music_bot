@@ -46,7 +46,7 @@ class music_cog(commands.Cog):
             "title": info["title"],
             "duration": info["duration_string"],
         }
-
+    
     def play_next(self):
         self.is_playing = True
         if self.repeat is False:
@@ -55,14 +55,15 @@ class music_cog(commands.Cog):
             except IndexError:
                 self.is_playing = False
                 return
-        if len(self.music_queue) > 0:
-            m_url = self.music_queue[0][0]["source"]
-            self.vc.play(
-                discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-                after=lambda e: self.play_next()  # idk the behaviour of anon func
-            )
-        else:
+        if len(self.music_queue) == 0:
             self.is_playing = False
+            return
+        m_url = self.music_queue[0][0]["source"]
+        self.vc.play(
+            discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
+            after=lambda e: self.play_next()  # idk the behaviour of anon func
+        )
+            
 
     async def play_music(self, ctx):
         if len(self.music_queue) == 0:
