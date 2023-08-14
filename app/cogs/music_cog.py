@@ -116,8 +116,15 @@ class music_cog(commands.Cog):
                     "Cannot download song because of incorrect format, try another search."
                 )
             else:
-                await ctx.send("Added to the queue")
+                # TODO: show what music is added
                 self.music_queue.append([song, voice_channel])
+                info_title = song.get("title")
+                info_duration = song.get("duration")
+                song_title = "Unavailable" if info_title is None else info_title
+                song_duration = "00:00" if info_duration is None else info_duration
+                self.embed.add_field(name="Added to the queue", value=f"```{song_title} | {song_duration}```")
+                await ctx.send(embed=self.embed)
+                self.embed.clear_fields()
                 if self.is_playing is False:  # will only connect and play if its False
                     await self.play_music(ctx)
         else:
