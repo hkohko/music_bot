@@ -1,7 +1,7 @@
 import discord
+import asyncio
 from discord.ext import commands
 from yt_dlp import YoutubeDL
-
 
 class music_cog(commands.Cog):
     def __init__(self, bot):
@@ -12,7 +12,6 @@ class music_cog(commands.Cog):
         self.is_paused = False
         self.repeat = False
 
-        self.now_playing = []
         self.music_queue = []
         self.YDL_OPTIONS = {"format": "bestaudio/best", "noplaylist": "True"}
         self.FFMPEG_OPTIONS = {"before_options": "-reconnect 1 -reconnect_streamed 1"}
@@ -24,6 +23,9 @@ class music_cog(commands.Cog):
             return " (repeat)"
         else:
             return ""
+
+    def get_now_playing(self):
+        return self.music_queue[0][0]["title"].strip(), self.music_queue[0][0]["duration"].strip()
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -48,15 +50,6 @@ class music_cog(commands.Cog):
             if self.repeat is False:
                 self.music_queue.pop(0)
             m_url = self.music_queue[0][0]["source"]
-            if self.repeat is False:
-                self.now_playing.clear()
-                self.now_playing.append(
-                    (
-                        self.music_queue[0][0]["title"],
-                        self.music_queue[0][0]["duration"],
-                    )
-                )
-
             self.vc.play(
                 discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
                 after=lambda e: self.play_next(),
@@ -78,15 +71,13 @@ class music_cog(commands.Cog):
                     else:
                         await self.vc.move_to(self.music_queue[0][1])
                 finally:
-                    self.now_playing.clear()
-                    self.now_playing.append(
-                        (
-                            self.music_queue[0][0]["title"],
-                            self.music_queue[0][0]["duration"],
+                    if self.repeat is False:
+                        self.embed.add_field(
+                            name=f"**Now Playing{self.get_repeat_status()}**",
+                            value=f"```{self.music_queue[0][0]['title']} | {self.music_queue[0][0]['duration']}```",
                         )
-                    )
-                    # self.music_queue.pop(0)
-
+                        await ctx.send(embed=self.embed)
+                        self.embed.clear_fields()
                     self.vc.play(
                         discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
                         after=lambda e: self.play_next(),
@@ -141,8 +132,9 @@ class music_cog(commands.Cog):
             await ctx.send(f"Tracks now plays normally.")
             return
         if self.repeat is False:
+            title, _ = self.get_now_playing()
             self.repeat = True
-            await ctx.send(f"`{self.now_playing[0][0]}` is on repeat")
+            await ctx.send(f"`{title}` is on repeat")
             return
 
     @commands.command(
@@ -156,10 +148,11 @@ class music_cog(commands.Cog):
 
     @commands.command(name="skip", aliases=["s"], help="Skips a song.")
     async def skip(self, ctx):
-        self.now_playing.clear()
         if self.vc is not None and self.vc:
             self.vc.stop()
-            await self.play_next(ctx)  # never change this line, it breaks everything
+            if self.repeat:
+                self.music_queue.pop(0)
+            self.play_next(ctx)  # never change this line, it breaks everything
 
     @commands.command(name="queue", aliases=["q"], help="Display current queue.")
     async def queue(self, ctx):
@@ -199,14 +192,16 @@ class music_cog(commands.Cog):
         self.is_paused = False
         await self.vc.disconnect()
         self.music_queue.clear()
+        self.repeat = False
         self.vc = None  # can only join one channel currently
 
     @commands.command(name="np", aliases=["nowplaying"], help="Shows now playing song.")
     async def nowplaying(self, ctx):
-        if len(self.now_playing) > 0:
+        if len(self.music_queue) > 0:
+            title, duration = self.get_now_playing()
             self.embed.add_field(
                 name=f"**Now Playing{self.get_repeat_status()}**",
-                value=f"```{self.now_playing[0][0]} | {self.now_playing[0][1]}```",
+                value=f"```{title} | {duration}```",
             )
             await ctx.send(embed=self.embed)
             self.embed.clear_fields()
