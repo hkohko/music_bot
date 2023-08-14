@@ -1,7 +1,7 @@
 import discord
-import asyncio
 from discord.ext import commands
 from yt_dlp import YoutubeDL
+
 
 class music_cog(commands.Cog):
     def __init__(self, bot):
@@ -25,7 +25,10 @@ class music_cog(commands.Cog):
             return ""
 
     def get_now_playing(self):
-        return self.music_queue[0][0]["title"].strip(), self.music_queue[0][0]["duration"].strip()
+        return (
+            self.music_queue[0][0]["title"].strip(),
+            self.music_queue[0][0]["duration"].strip(),
+        )
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -45,14 +48,14 @@ class music_cog(commands.Cog):
         }
 
     def play_next(self):
+        self.is_playing = True
+        if self.repeat is False:
+            self.music_queue.pop(0)
         if len(self.music_queue) > 0:
-            self.is_playing = True
-            if self.repeat is False:
-                self.music_queue.pop(0)
             m_url = self.music_queue[0][0]["source"]
             self.vc.play(
                 discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-                after=lambda e: self.play_next(),
+                after=lambda e: self.play_next(),  # idk the behaviour of anon func
             )
         else:
             self.is_playing = False
