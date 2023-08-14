@@ -46,7 +46,7 @@ class music_cog(commands.Cog):
             "title": info["title"],
             "duration": info["duration_string"],
         }
-    
+
     def play_next(self):
         self.is_playing = True
         if self.repeat is False:
@@ -61,7 +61,7 @@ class music_cog(commands.Cog):
         m_url = self.music_queue[0][0]["source"]
         self.vc.play(
             discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-            after=lambda e: self.play_next()  # idk the behaviour of anon func
+            after=lambda _: self.play_next()  # idk the behaviour of anon func
         )
             
 
@@ -81,15 +81,16 @@ class music_cog(commands.Cog):
                 await self.vc.move_to(self.music_queue[0][1])
             finally:
                 if self.repeat is False:
+                    title, duration = self.get_now_playing()
                     self.embed.add_field(
                         name=f"**Now Playing{self.get_repeat_status()}**",
-                        value=f"```{self.music_queue[0][0]['title']} | {self.music_queue[0][0]['duration']}```",
+                        value=f"```{title} | {duration}```",
                     )
                     await ctx.send(embed=self.embed)
                     self.embed.clear_fields()
                 self.vc.play(
                     discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS),
-                    after=lambda e: self.play_next()
+                    after=lambda _: self.play_next()
                 )
             
 
