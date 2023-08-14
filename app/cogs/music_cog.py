@@ -82,9 +82,6 @@ class music_cog(commands.Cog):
             return
         self.is_playing = True
         m_url = self.music_queue[0][0]["source"]
-        connect = await self.connect_to_vc(ctx)
-        if not connect:
-            return
         if self.repeat is False:
             title, duration = self.get_now_playing()
             self.embed.add_field(
@@ -132,6 +129,9 @@ class music_cog(commands.Cog):
                 )
                 await ctx.send(embed=self.embed)
                 self.embed.clear_fields()
+                connect = await self.connect_to_vc(ctx)
+                if not connect:
+                    return
                 if self.is_playing is False:  # will only connect and play if its False
                     await self.play_music(ctx)
         else:
